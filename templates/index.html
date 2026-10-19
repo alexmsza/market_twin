@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Market Twin • Simulador de População Sintética & Validação de PMF</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            sovereign: {
+              950: '#030509',
+              900: '#05080F',
+              850: '#090E1A',
+              800: '#0D1527',
+              700: '#14203B',
+              border: '#1E2D4A',
+            },
+            cyanGlow: '#00F0FF',
+            royalBlue: '#1D4ED8',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #05080F;
+      color: #E2E8F0;
+    }
+    .glow-cyan {
+      box-shadow: 0 0 25px -5px rgba(0, 240, 255, 0.25);
+    }
+    .glow-card {
+      background: radial-gradient(120% 120% at 50% 0%, #0F1A30 0%, #080D1A 100%);
+      border: 1px solid #1E2D4A;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #05080F; }
+    ::-webkit-scrollbar-thumb { background: #1E2D4A; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #00F0FF; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
+
+  <!-- Top Navigation -->
+  <header class="border-b border-sovereign-border bg-sovereign-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-black text-xl shadow-lg shadow-cyan-500/20">
+          🌐
+        </div>
+        <div>
+          <span class="text-lg font-bold tracking-tight text-white">MARKET<span class="text-cyanGlow">TWIN</span></span>
+          <span class="text-xs px-2 py-0.5 ml-2 rounded-full bg-cyan-950 border border-cyan-800 text-cyan-400 font-mono">v0.1.0</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="text-xs text-slate-400 font-mono hidden md:inline-flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Motor Monte Carlo Ativo • Até 100k Personas
+        </span>
+        <a href="#simulate-section" class="px-4 py-2 text-xs font-semibold rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition">
+          Iniciar Validação
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+
+    <!-- Hero Section -->
+    <div class="text-center max-w-3xl mx-auto pt-4 space-y-3">
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        Valide seu Projeto com <span class="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">10.000 Clones Virtuais</span> Globais
+      </h1>
+      <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
+        Simule a reação estocástica de compradores reais em 5 macrorregiões do mundo. Calcule o <b class="text-slate-200">PMF Index</b>, <b class="text-slate-200">Net Promoter Score</b>, elasticidade de preço e ouça objeções sinceras de coortes antes de investir capital.
+      </p>
+    </div>
+
+    <!-- Simulation Form & Controls -->
+    <section id="simulate-section" class="glow-card rounded-2xl p-6 sm:p-8 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-sovereign-border gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <span>⚙️</span> Configuração da Proposta & Pitch
+          </h2>
+          <p class="text-xs text-slate-400">Preencha os detalhes do produto ou selecione um modelo pronto para testar.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs text-slate-400 font-medium">Modelos Rápidos:</span>
+          <button type="button" onclick="loadPreset('pix')" class="px-3 py-1 text-xs rounded bg-sovereign-800 border border-sovereign-border hover:border-cyan-500/50 text-slate-300 hover:text-white transition">
+            API PIX (B2B)
+          </button>
+          <button type="button" onclick="loadPreset('twin')" class="px-3 py-1 text-xs rounded bg-sovereign-800 border border-sovereign-border hover:border-cyan-500/50 text-slate-300 hover:text-white transition">
+            Market Twin (AI SaaS)
+          </button>
+          <button type="button" onclick="loadPreset('habit')" class="px-3 py-1 text-xs rounded bg-sovereign-800 border border-sovereign-border hover:border-cyan-500/50 text-slate-300 hover:text-white transition">
+            App Hábitos (B2C)
+          </button>
+        </div>
+      </div>
+
+      <form id="sim-form" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nome do Projeto</label>
+            <input type="text" id="p-name" required value="API de Monitoramento de Pagamentos PIX em Tempo Real" class="w-full bg-sovereign-900 border border-sovereign-border rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Categoria de Mercado</label>
+            <select id="p-category" class="w-full bg-sovereign-900 border border-sovereign-border rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition">
+              {% for cat in categories %}
+                <option value="{{ cat }}" {% if cat == 'FinTech / Payments' %}selected{% endif %}>{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Preço Mensal Sugerido (USD)</label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-2.5 text-slate-500 text-sm">$</span>
+              <input type="number" id="p-price" step="1" min="1" value="49" class="w-full bg-sovereign-900 border border-sovereign-border rounded-lg pl-8 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Proposta de Valor em Uma Frase (Tagline)</label>
+          <input type="text" id="p-tagline" required value="Alertas instantâneos de falha e reconciliação automática de Pix para fintechs e e-commerces" class="w-full bg-sovereign-900 border border-sovereign-border rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Problema Crítico Resolvido</label>
+            <textarea id="p-problem" rows="3" required class="w-full bg-sovereign-900 border border-sovereign-border rounded-lg p-3 text-sm text-white focus:outline-none focus:border-cyan-500 transition">APIs bancárias sofrem oscilações silenciosas, derrubando vendas em carrinhos de compras sem que a equipe técnica seja avisada a tempo.</textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Solução Proposta & Diferencial</label>
+            <textarea id="p-solution" rows="3" required class="w-full bg-sovereign-900 border border-sovereign-border rounded-lg p-3 text-sm text-white focus:outline-none focus:border-cyan-500 transition">Agente autônomo com webhooks de redundância, heartbeat a cada 5 segundos e failover inteligente de rota de pagamento.</textarea>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-4 border-t border-sovereign-border gap-4">
+          <div class="flex items-center space-x-6">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Tamanho da População</label>
+              <select id="p-population" class="bg-sovereign-900 border border-sovereign-border rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500">
+                <option value="1000">1.000 Personas (Piloto)</option>
+                <option value="5000">5.000 Personas</option>
+                <option value="10000" selected>10.000 Personas (Padrão)</option>
+                <option value="25000">25.000 Personas (Stress Test)</option>
+                <option value="50000">50.000 Personas (Macro)</option>
+              </select>
+            </div>
+
+            <div class="flex items-center space-x-2 pt-4 sm:pt-0">
+              <input type="checkbox" id="p-use-llm" class="rounded bg-sovereign-900 border-sovereign-border text-cyan-500 focus:ring-0">
+              <label for="p-use-llm" class="text-xs text-slate-300 select-none">Ativar Focus Group com Ollama Local (`aszadev-pro`)</label>
+            </div>
+          </div>
+
+          <button type="submit" id="btn-submit" class="px-6 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold text-sm tracking-wide shadow-lg shadow-cyan-500/20 transition flex items-center justify-center gap-2">
+            <span id="btn-spinner" class="hidden animate-spin">⏳</span>
+            <span>RODAR SIMULAÇÃO DE MERCADO</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Simulation Results Area (Initially Hidden) -->
+    <div id="results-area" class="hidden space-y-8">
+
+      <!-- Executive Investment Verdict Banner -->
+      <div id="verdict-banner" class="rounded-2xl p-6 sm:p-8 border transition-all duration-300">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-3 mb-2">
+              <span id="verdict-pill" class="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider"></span>
+              <span class="text-xs text-slate-400 font-mono" id="sim-meta"></span>
+            </div>
+            <h3 id="verdict-title" class="text-2xl font-black tracking-tight text-white mb-2"></h3>
+            <p id="verdict-text" class="text-sm text-slate-300 leading-relaxed max-w-4xl"></p>
+          </div>
+          <div class="shrink-0">
+            <button type="button" onclick="downloadPDF()" class="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-sovereign-800 border border-slate-600 hover:border-cyan-400 text-white font-semibold text-xs flex items-center justify-center gap-2 transition shadow">
+              <span>📄</span>
+              <span>BAIXAR DOSSIÊ EXECUTIVO (PDF)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glow-card rounded-xl p-5 border border-sovereign-border space-y-1">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Índice PMF (0-100)</span>
+          <div class="flex items-baseline gap-2">
+            <span id="kpi-pmf" class="text-3xl font-black text-white"></span>
+            <span class="text-xs text-slate-500">/ 100</span>
+          </div>
+          <span id="kpi-pmf-sub" class="text-xs font-medium text-emerald-400 block pt-1"></span>
+        </div>
+
+        <div class="glow-card rounded-xl p-5 border border-sovereign-border space-y-1">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Net Promoter Score (NPS)</span>
+          <div class="flex items-baseline gap-2">
+            <span id="kpi-nps" class="text-3xl font-black text-white"></span>
+          </div>
+          <span id="kpi-nps-sub" class="text-xs font-medium text-cyan-400 block pt-1"></span>
+        </div>
+
+        <div class="glow-card rounded-xl p-5 border border-sovereign-border space-y-1">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Taxa de Conversão Global</span>
+          <div class="flex items-baseline gap-2">
+            <span id="kpi-cr" class="text-3xl font-black text-white"></span>
+          </div>
+          <span id="kpi-cr-sub" class="text-xs font-medium text-indigo-400 block pt-1"></span>
+        </div>
+
+        <div class="glow-card rounded-xl p-5 border border-sovereign-border space-y-1">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">População Sintética</span>
+          <div class="flex items-baseline gap-2">
+            <span id="kpi-pop" class="text-3xl font-black text-white"></span>
+          </div>
+          <span class="text-xs text-slate-400 block pt-1">Clones estocásticos ativos</span>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Regional Breakdown -->
+        <div class="glow-card rounded-xl p-6 border border-sovereign-border space-y-4">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <span>🌍</span> Desempenho por Região Global
+            </h4>
+            <span class="text-xs text-slate-500">Taxa de Conversão (%)</span>
+          </div>
+          <div class="h-64 relative">
+            <canvas id="regionChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Price Elasticity -->
+        <div class="glow-card rounded-xl p-6 border border-sovereign-border space-y-4">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <span>💲</span> Curva de Elasticidade de Preço (PSM)
+            </h4>
+            <span class="text-xs text-slate-500">Conversão vs Preço USD</span>
+          </div>
+          <div class="h-64 relative">
+            <canvas id="priceChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Focus Group Verbatims Grid -->
+      <div class="glow-card rounded-xl p-6 border border-sovereign-border space-y-4">
+        <div class="flex items-center justify-between border-b border-sovereign-border pb-3">
+          <div>
+            <h4 class="text-base font-bold text-white flex items-center gap-2">
+              <span>🗣️</span> Voz do Cliente Sintético (Depoimentos Representativos)
+            </h4>
+            <p class="text-xs text-slate-400">Feedbacks qualitativos em primeira pessoa extraídos das coortes demográficas.</p>
+          </div>
+        </div>
+
+        <div id="focus-group-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer class="border-t border-sovereign-border bg-sovereign-950/80 py-6 text-center text-xs text-slate-500">
+    <p>Market Twin Engine • Ecossistema Alex Souza • Modelagem Probabilística Monte Carlo & SLM Focus Group</p>
+  </footer>
+
+  <script>
+    let regionChartInstance = null;
+    let priceChartInstance = null;
+    let lastPayload = null;
+
+    const PRESETS = {
+      pix: {
+        name: "API de Monitoramento de Pagamentos PIX em Tempo Real",
+        category: "FinTech / Payments",
+        price: 49,
+        tagline: "Alertas instantâneos de falha e reconciliação automática de Pix para fintechs e e-commerces",
+        problem: "APIs bancárias sofrem oscilações silenciosas, derrubando vendas em carrinhos de compras sem que a equipe técnica seja avisada a tempo.",
+        solution: "Agente autônomo com webhooks de redundância, heartbeat a cada 5 segundos e failover inteligente de rota de pagamento."
+      },
+      twin: {
+        name: "Market Twin • Validador Sintético de Startups",
+        category: "AI Agent / Automation",
+        price: 79,
+        tagline: "Valide seu produto com 10.000 clones virtuais globais antes de investir capital ou código",
+        problem: "Fundadores gastam meses e milhares de dólares construindo produtos que ninguém quer comprar por falta de validação prévia de mercado.",
+        solution: "Simulador estocástico Monte Carlo acoplado a grupos focais neurais com análise rigorosa de WTP e elasticidade."
+      },
+      habit: {
+        name: "Rhythm • App Mobile de Hábitos e Disciplina",
+        category: "Consumer App / Mobile",
+        price: 9.99,
+        tagline: "Construção de hábitos com responsabilidade social e gamificação comportamental",
+        problem: "92% das pessoas abandonam suas metas de ano novo antes de fevereiro por falta de fricção positiva e feedback diário.",
+        solution: "Comunidades fechadas de compromisso mútuo onde quem falha paga micro-multas distribuídas aos participantes consistentes."
+      }
+    };
+
+    function loadPreset(key) {
+      const p = PRESETS[key];
+      if (!p) return;
+      document.getElementById('p-name').value = p.name;
+      document.getElementById('p-category').value = p.category;
+      document.getElementById('p-price').value = p.price;
+      document.getElementById('p-tagline').value = p.tagline;
+      document.getElementById('p-problem').value = p.problem;
+      document.getElementById('p-solution').value = p.solution;
+    }
+
+    document.getElementById('sim-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-submit');
+      const spinner = document.getElementById('btn-spinner');
+
+      btn.disabled = true;
+      spinner.classList.remove('hidden');
+
+      const payload = {
+        name: document.getElementById('p-name').value,
+        category: document.getElementById('p-category').value,
+        price_usd_monthly: parseFloat(document.getElementById('p-price').value),
+        tagline: document.getElementById('p-tagline').value,
+        problem_statement: document.getElementById('p-problem').value,
+        solution_description: document.getElementById('p-solution').value,
+        population_size: parseInt(document.getElementById('p-population').value),
+        use_llm: document.getElementById('p-use-llm').checked,
+        seed: 42
+      };
+      lastPayload = payload;
+
+      try {
+        const res = await fetch('/api/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Erro na simulação do servidor.");
+        const data = await res.json();
+        renderResults(data);
+      } catch (err) {
+        alert("Falha na simulação: " + err.message);
+      } finally {
+        btn.disabled = false;
+        spinner.classList.add('hidden');
+      }
+    });
+
+    function renderResults(data) {
+      const area = document.getElementById('results-area');
+      area.classList.remove('hidden');
+
+      // 1. Banner Veredito
+      const banner = document.getElementById('verdict-banner');
+      const pill = document.getElementById('verdict-pill');
+      const title = document.getElementById('verdict-title');
+      const text = document.getElementById('verdict-text');
+      const meta = document.getElementById('sim-meta');
+
+      meta.textContent = `${data.population_size.toLocaleString()} personas • inferência em ${data.simulation_duration_seconds}s`;
+      title.textContent = data.verdict;
+      text.textContent = data.verdict_rationale;
+
+      if (data.verdict_badge === 'success') {
+        banner.className = "rounded-2xl p-6 sm:p-8 border bg-emerald-950/20 border-emerald-500/40";
+        pill.className = "px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        pill.textContent = "Recomendação Positiva";
+      } else if (data.verdict_badge === 'warning') {
+        banner.className = "rounded-2xl p-6 sm:p-8 border bg-amber-950/20 border-amber-500/40";
+        pill.className = "px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30";
+        pill.textContent = "Ajuste Recomendado";
+      } else {
+        banner.className = "rounded-2xl p-6 sm:p-8 border bg-rose-950/20 border-rose-500/40";
+        pill.className = "px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        pill.textContent = "Alto Risco / Não Investir";
+      }
+
+      // 2. KPIs
+      document.getElementById('kpi-pmf').textContent = data.pmf_index.toFixed(1);
+      document.getElementById('kpi-pmf-sub').textContent = data.pmf_index >= 60 ? "Aderência Excelente" : (data.pmf_index >= 45 ? "Aderência Moderada" : "Aderência Insuficiente");
+
+      document.getElementById('kpi-nps').textContent = (data.nps_score > 0 ? "+" : "") + data.nps_score.toFixed(1);
+      document.getElementById('kpi-nps-sub').textContent = data.nps_score >= 20 ? "Zona de Excelência" : (data.nps_score >= 0 ? "Zona Neutra" : "Zona de Detração");
+
+      document.getElementById('kpi-cr').textContent = data.conversion_rate.toFixed(2) + "%";
+      document.getElementById('kpi-cr-sub').textContent = `${((data.conversion_rate / 100) * data.population_size).toFixed(0)} compradores simulados`;
+
+      document.getElementById('kpi-pop').textContent = data.population_size.toLocaleString();
+
+      // 3. Gráfico Regional
+      renderRegionChart(data.breakdown_by_region);
+
+      // 4. Gráfico Elasticidade
+      renderPriceChart(data.price_elasticity);
+
+      // 5. Focus Group
+      renderFocusGroup(data.focus_group);
+
+      // Scroll suave até os resultados
+      banner.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderRegionChart(regions) {
+      const ctx = document.getElementById('regionChart').getContext('2d');
+      if (regionChartInstance) regionChartInstance.destroy();
+
+      regionChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: regions.map(r => r.region),
+          datasets: [{
+            label: 'Taxa de Conversão (%)',
+            data: regions.map(r => r.conversion_rate),
+            backgroundColor: 'rgba(0, 240, 255, 0.65)',
+            borderColor: '#00F0FF',
+            borderWidth: 1.5,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94A3B8' } },
+            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94A3B8' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function renderPriceChart(elasticity) {
+      const ctx = document.getElementById('priceChart').getContext('2d');
+      if (priceChartInstance) priceChartInstance.destroy();
+
+      priceChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: elasticity.map(e => `$${e.price_usd}`),
+          datasets: [
+            {
+              label: 'Conversão (%)',
+              data: elasticity.map(e => e.conversion_rate),
+              borderColor: '#00F0FF',
+              backgroundColor: 'rgba(0, 240, 255, 0.1)',
+              fill: true,
+              tension: 0.3,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Faturamento Projetado Relativo (%)',
+              data: elasticity.map(e => e.projected_revenue_index),
+              borderColor: '#3B82F6',
+              borderDash: [5, 5],
+              tension: 0.3,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94A3B8' } },
+            y: { position: 'left', grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#00F0FF' } },
+            y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#3B82F6' } }
+          }
+        }
+      });
+    }
+
+    function renderFocusGroup(focusGroup) {
+      const grid = document.getElementById('focus-group-grid');
+      grid.innerHTML = '';
+
+      focusGroup.forEach(fg => {
+        const sentimentColor = fg.sentiment.includes('Otimista') || fg.sentiment.includes('Interessado')
+          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+          : 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+
+        const card = document.createElement('div');
+        card.className = "bg-sovereign-900 border border-sovereign-border rounded-xl p-4 flex flex-col justify-between space-y-3";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-white">${fg.representative_name}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full border ${sentimentColor} font-semibold">${fg.sentiment}</span>
+            </div>
+            <div class="text-[11px] text-slate-400 mb-2">${fg.country} • ${fg.region} | <i>${fg.archetype}</i></div>
+            <p class="text-xs text-slate-200 italic mb-3">"${fg.verbatim_quote}"</p>
+          </div>
+          <div class="text-[11px] space-y-1.5 border-t border-sovereign-border pt-2 text-slate-300">
+            <div><b class="text-rose-400">Objeção:</b> ${fg.top_objection}</div>
+            <div><b class="text-emerald-400">Gatilho:</b> ${fg.key_buying_trigger}</div>
+            <div class="text-[10px] text-slate-400 font-mono pt-1">Disposição máxima estimada: $${fg.estimated_wtp_usd.toFixed(2)} USD</div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    async function downloadPDF() {
+      if (!lastPayload) return;
+      try {
+        const res = await fetch('/api/simulate/pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(lastPayload)
+        });
+        if (!res.ok) throw new Error("Falha ao gerar PDF");
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dossie_validacao_${lastPayload.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (e) {
+        alert("Erro no download: " + e.message);
+      }
+    }
+  </script>
+</body>
+</html>
