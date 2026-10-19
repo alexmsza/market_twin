@@ -38,3 +38,8 @@ ENV/
 exports/*.pdf
 reports/*.pdf
 *.log
+
+# Rust Target Artifacts
+engine_rust/target/
+market_twin/*.dll
+

@@ -103,9 +103,12 @@ CATEGORY_AFFINITY: Dict[ProjectCategory, Dict[PersonaArchetype, float]] = {
 }
 
 
+from market_twin.native_engine import is_native_available, run_native_monte_carlo
+
+
 class MarketTwinSimulator:
     """
-    Simulador híbrido: Estatística Vetorizada Monte Carlo + LLM/SLM Focus Group.
+    Simulador híbrido: Aceleração Nativa em Rust (Rayon) + LLM/SLM Focus Group (com fallback NumPy).
     """
 
     def __init__(self, seed: int = 42) -> None:
@@ -120,25 +123,68 @@ class MarketTwinSimulator:
     ) -> SimulationResult:
         """
         Executa a simulação completa para uma população de N clones virtuais.
+        Utiliza o motor nativo Rust Rayon por padrão para latência sub-milisegundo.
         """
         start_time = time.perf_counter()
 
-        # 1. Gerar População Sintética
-        personas = self.pop_generator.generate_population(size=population_size)
+        native_res = None
+        if is_native_available():
+            pitch_dict = {
+                "name": pitch.name,
+                "category": pitch.category.value,
+                "price_usd_monthly": pitch.price_usd_monthly,
+                "target_regions": [r.value for r in pitch.target_regions],
+            }
+            native_res = run_native_monte_carlo(pitch_dict, population_size, seed=self.seed)
 
-        # 2. Avaliação Micro-Econômica Vetorizada (Tier 1)
-        evaluations = self._evaluate_population(personas, pitch)
+        if native_res:
+            pmf_index = float(native_res["pmf_index"])
+            nps_score = float(native_res["nps_score"])
+            conversion_rate = float(native_res["conversion_rate"])
+            breakdown_by_region = [
+                RegionalMetric(
+                    region=r["region"],
+                    total_population=r["total_population"],
+                    converted_users=r["converted_users"],
+                    conversion_rate=r["conversion_rate"],
+                    average_pmf=r["average_pmf"],
+                    average_wtp_usd=r["average_wtp_usd"],
+                )
+                for r in native_res["breakdown_by_region"]
+            ]
+            price_elasticity = [
+                PricePointDemand(
+                    price_usd=p["price_usd"],
+                    conversion_rate=p["conversion_rate"],
+                    projected_revenue_index=p["projected_revenue_index"],
+                )
+                for p in native_res["price_elasticity"]
+            ]
 
-        # 3. Consolidação Estatística de Métricas
-        pmf_index, nps_score, conversion_rate = self._compute_aggregate_metrics(evaluations)
+            # Obter amostra pequena de personas para o Focus Group qualitativo (5 pessoas)
+            sample_personas = self.pop_generator.generate_population(size=100)
+            sample_evals = self._evaluate_population(sample_personas, pitch)
+            focus_group = self._run_cohort_focus_group(
+                personas=sample_personas,
+                evaluations=sample_evals,
+                pitch=pitch,
+                use_llm=use_llm_focus_group,
+            )
+        else:
+            # Fallback 100% Python / NumPy
+            personas = self.pop_generator.generate_population(size=population_size)
+            evaluations = self._evaluate_population(personas, pitch)
+            pmf_index, nps_score, conversion_rate = self._compute_aggregate_metrics(evaluations)
+            breakdown_by_region = self._compute_regional_breakdown(personas, evaluations)
+            price_elasticity = self._compute_price_elasticity(personas, pitch)
+            focus_group = self._run_cohort_focus_group(
+                personas=personas,
+                evaluations=evaluations,
+                pitch=pitch,
+                use_llm=use_llm_focus_group,
+            )
 
-        # 4. Análise por Macrorregião
-        breakdown_by_region = self._compute_regional_breakdown(personas, evaluations)
-
-        # 5. Curva de Elasticidade de Preço (Van Westendorp PSM)
-        price_elasticity = self._compute_price_elasticity(personas, pitch)
-
-        # 6. Veredito Executivo de Investimento
+        # Veredito Executivo de Investimento
         verdict, badge, rationale = self._determine_investment_verdict(
             pmf_index=pmf_index,
             nps=nps_score,
@@ -146,15 +192,7 @@ class MarketTwinSimulator:
             pitch=pitch,
         )
 
-        # 7. Focus Group Qualitativo Estratificado (Tier 2 via SLM/LLM)
-        focus_group = self._run_cohort_focus_group(
-            personas=personas,
-            evaluations=evaluations,
-            pitch=pitch,
-            use_llm=use_llm_focus_group,
-        )
-
-        elapsed = round(time.perf_counter() - start_time, 2)
+        elapsed = round(time.perf_counter() - start_time, 3)
 
         return SimulationResult(
             project_name=pitch.name,
@@ -171,6 +209,7 @@ class MarketTwinSimulator:
             simulation_duration_seconds=elapsed,
             timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
         )
+
 
     def _evaluate_population(
         self,
